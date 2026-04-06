@@ -1,6 +1,6 @@
 # urlfix
 
-Tiny macOS CLI for fixing wrapped URLs.
+Tiny CLI for fixing wrapped URLs.
 
 Copy a broken URL, run `urlfix`, and the tool removes every whitespace character, prints the cleaned URL, and writes the cleaned value back to your clipboard.
 
@@ -21,19 +21,33 @@ https://example.com/abcd?x=12
 
 ## Install
 
+### Standalone
+
 ```bash
 git clone https://github.com/malakhov-dmitrii/urlfix.git
 cd urlfix
 ./install.sh
 ```
 
-The installer copies the script to `~/.local/bin/urlfix`.
+### Homebrew
+
+```bash
+brew tap malakhov-dmitrii/urlfix
+brew install urlfix
+```
+
+Or in one line:
+
+```bash
+brew install malakhov-dmitrii/urlfix/urlfix
+```
 
 ## Usage
 
 ```bash
-urlfix                 # default: clean current clipboard contents
-urlfix --clipboard     # explicit clipboard mode
+urlfix                    # default: clean current clipboard contents
+urlfix -o                 # clean clipboard and open the result
+urlfix --clipboard        # explicit clipboard mode
 urlfix 'https://exa mple.com/a b'
 printf 'https://exa\nmple.com/a b' | urlfix
 ```
@@ -41,8 +55,15 @@ printf 'https://exa\nmple.com/a b' | urlfix
 ## Behavior
 
 - Removes all whitespace characters: spaces, tabs, and newlines.
-- Copies the cleaned URL to the macOS clipboard with `pbcopy`.
+- Copies the cleaned URL back to your system clipboard.
 - Prints the cleaned URL to stdout so you can see what happened.
+- `-o` / `--open` opens the cleaned URL after copying it.
+
+## Platform support
+
+- macOS: uses `pbcopy`, `pbpaste`, and `open`
+- Linux Wayland: uses `wl-copy`, `wl-paste`, and `xdg-open`
+- Linux X11: uses `xclip` or `xsel`, plus `xdg-open`
 
 ## Test
 

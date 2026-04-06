@@ -7,39 +7,146 @@ urlfix — remove whitespace from a wrapped URL and put the cleaned URL back int
 
 Usage:
   urlfix                 # clean whatever is in the clipboard
+  urlfix -o              # clean clipboard and open the result in the browser
   urlfix [URL parts...]  # clean the provided text
   some-command | urlfix  # clean stdin
   urlfix --clipboard     # explicit clipboard mode
+  urlfix --open          # open the cleaned URL after copying it
   urlfix --help
 USAGE
 }
 
-if [[ "${1:-}" == "-h" || "${1:-}" == "--help" ]]; then
-  usage
-  exit 0
+die() {
+  printf 'urlfix: %s\n' "$1" >&2
+  exit 1
+}
+
+detect_os() {
+  printf '%s\n' "${URLFIX_OS_OVERRIDE:-$(uname -s)}"
+}
+
+clipboard_read() {
+  case "$(detect_os)" in
+    Darwin)
+      command -v pbpaste >/dev/null 2>&1 || die 'pbpaste is not available'
+      pbpaste
+      ;;
+    Linux)
+      if command -v wl-paste >/dev/null 2>&1; then
+        wl-paste -n
+      elif command -v xclip >/dev/null 2>&1; then
+        xclip -selection clipboard -o
+      elif command -v xsel >/dev/null 2>&1; then
+        xsel --clipboard --output
+      else
+        die 'no clipboard reader found; install wl-clipboard, xclip, or xsel'
+      fi
+      ;;
+    *)
+      die "unsupported OS: $(detect_os)"
+      ;;
+  esac
+}
+
+clipboard_write() {
+  case "$(detect_os)" in
+    Darwin)
+      command -v pbcopy >/dev/null 2>&1 || die 'pbcopy is not available'
+      pbcopy
+      ;;
+    Linux)
+      if command -v wl-copy >/dev/null 2>&1; then
+        wl-copy
+      elif command -v xclip >/dev/null 2>&1; then
+        xclip -selection clipboard
+      elif command -v xsel >/dev/null 2>&1; then
+        xsel --clipboard --input
+      else
+        die 'no clipboard writer found; install wl-clipboard, xclip, or xsel'
+      fi
+      ;;
+    *)
+      die "unsupported OS: $(detect_os)"
+      ;;
+  esac
+}
+
+open_cleaned_url() {
+  local url="$1"
+
+  case "$(detect_os)" in
+    Darwin)
+      command -v open >/dev/null 2>&1 || die 'open is not available'
+      open "$url" >/dev/null 2>&1
+      ;;
+    Linux)
+      command -v xdg-open >/dev/null 2>&1 || die 'xdg-open is not available'
+      xdg-open "$url" >/dev/null 2>&1
+      ;;
+    *)
+      die "unsupported OS: $(detect_os)"
+      ;;
+  esac
+}
+
+use_clipboard=false
+should_open=false
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    -h|--help)
+      usage
+      exit 0
+      ;;
+    -c|--clipboard)
+      use_clipboard=true
+      shift
+      ;;
+    -o|--open)
+      should_open=true
+      shift
+      ;;
+    --)
+      shift
+      break
+      ;;
+    -*)
+      die "unknown flag: $1"
+      ;;
+    *)
+      break
+      ;;
+  esac
+done
+
+if [[ "$use_clipboard" == true && $# -gt 0 ]]; then
+  die '--clipboard cannot be combined with URL arguments'
 fi
 
 input=''
-if [[ $# -gt 0 && ( "${1:-}" == "--clipboard" || "${1:-}" == "-c" ) ]]; then
-  shift
-  input="$(pbpaste)"
+if [[ "$use_clipboard" == true ]]; then
+  input="$(clipboard_read)"
 elif [[ $# -gt 0 ]]; then
   input="$*"
 elif [[ ! -t 0 ]]; then
   input="$(cat)"
   if [[ -z "$input" ]]; then
-    input="$(pbpaste)"
+    input="$(clipboard_read)"
   fi
 else
-  input="$(pbpaste)"
+  input="$(clipboard_read)"
 fi
 
 cleaned="$(printf '%s' "$input" | tr -d '[:space:]')"
 
 if [[ -z "$cleaned" ]]; then
-  printf 'urlfix: no URL data found\n' >&2
-  exit 1
+  die 'no URL data found'
 fi
 
-printf '%s' "$cleaned" | pbcopy
+printf '%s' "$cleaned" | clipboard_write
+
+if [[ "$should_open" == true ]]; then
+  open_cleaned_url "$cleaned"
+fi
+
 printf '%s\n' "$cleaned"
