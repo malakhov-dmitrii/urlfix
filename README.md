@@ -65,6 +65,14 @@ printf 'https://exa\nmple.com/a b' | urlfix
 - Linux Wayland: uses `wl-copy`, `wl-paste`, and `xdg-open`
 - Linux X11: uses `xclip` or `xsel`, plus `xdg-open`
 
+## Release workflow
+
+```bash
+./scripts/release.sh v0.1.2 /Users/malakhov/code/homebrew-urlfix
+```
+
+This will run tests, rebuild the release tarball, and update the Homebrew formulas in both repos so you only have to commit, tag, and publish.
+
 ## Test
 
 ```bash
