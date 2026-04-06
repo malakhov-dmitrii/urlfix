@@ -1,0 +1,45 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+usage() {
+  cat <<'USAGE'
+urlfix — remove whitespace from a wrapped URL and put the cleaned URL back into the clipboard.
+
+Usage:
+  urlfix                 # clean whatever is in the clipboard
+  urlfix [URL parts...]  # clean the provided text
+  some-command | urlfix  # clean stdin
+  urlfix --clipboard     # explicit clipboard mode
+  urlfix --help
+USAGE
+}
+
+if [[ "${1:-}" == "-h" || "${1:-}" == "--help" ]]; then
+  usage
+  exit 0
+fi
+
+input=''
+if [[ $# -gt 0 && ( "${1:-}" == "--clipboard" || "${1:-}" == "-c" ) ]]; then
+  shift
+  input="$(pbpaste)"
+elif [[ $# -gt 0 ]]; then
+  input="$*"
+elif [[ ! -t 0 ]]; then
+  input="$(cat)"
+  if [[ -z "$input" ]]; then
+    input="$(pbpaste)"
+  fi
+else
+  input="$(pbpaste)"
+fi
+
+cleaned="$(printf '%s' "$input" | tr -d '[:space:]')"
+
+if [[ -z "$cleaned" ]]; then
+  printf 'urlfix: no URL data found\n' >&2
+  exit 1
+fi
+
+printf '%s' "$cleaned" | pbcopy
+printf '%s\n' "$cleaned"
